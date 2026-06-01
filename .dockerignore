@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.venv/
+venv/
+README.md
+.claude/
+# No hornear secretos en la imagen; docker-compose los inyecta vía env_file.
+.env
+.env.example

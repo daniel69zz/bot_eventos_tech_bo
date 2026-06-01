@@ -1,0 +1,14 @@
+services:
+  bot-eventos:
+    build: .
+    container_name: bot-eventos-bolivia
+    env_file:
+      - .env
+    environment:
+      # Cada cuántas horas busca (8 por defecto). Cambialo acá si querés.
+      INTERVALO_HORAS: "8"
+    # Persiste las URLs ya enviadas entre reinicios del contenedor.
+    volumes:
+      - ./enviados.json:/app/enviados.json
+    # Que vuelva a levantar solo si se cae o si reiniciás la PC.
+    restart: unless-stopped
