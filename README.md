@@ -13,9 +13,16 @@ Filtro por keywords        ← gratis: descarta lo que no es "evento + lugar"
    ▼
 Dedup por URL              ← no re-procesa lo ya visto (estado en enviados.json)
    ▼
-Filtro + resumen con LLM   ← confirma que es evento real y lo resume en 1 línea
+Filtro + datos con LLM     ← confirma que es evento real y extrae ciudad, fecha,
+   │                          titular y una descripción con harto detalle
    ▼
-Telegram                   ← te llega el aviso
+Dedup por evento           ← colapsa el mismo evento que aparece en varias URLs
+   │                          (Facebook + TikTok + web…) en un solo aviso
+   ▼
+Filtro y orden por fecha   ← prioriza eventos futuros; muestra pasados solo si
+   │                          ocurrieron hace ≤ 7 días; descarta los más viejos
+   ▼
+Telegram                   ← te llega el aviso, con fecha y descripción
 ```
 
 Corre en tu PC con **Docker** (busca solo cada 8 horas) o a mano con Python.
@@ -43,7 +50,7 @@ Necesitás 3 cosas: bot de Telegram, una API key de Serper, y una API de LLM.
    El bot usa ~6 por corrida, 3 corridas/día = 18/día → ~540/mes. Da para varios meses.
    Después se paga por uso (~$1 por cada 1,000 búsquedas).
 
-### 3. LLM (filtro fino + resumen)
+### 3. LLM (filtro fino, fecha y descripción)
 
 Por defecto usa **Groq** (capa gratis generosa, rápido):
 
@@ -54,7 +61,34 @@ Por defecto usa **Groq** (capa gratis generosa, rápido):
 > Como la API es compatible con OpenAI, podés cambiar a OpenAI, OpenRouter o un
 > Ollama local solo cambiando `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY`.
 > Si dejás `LLM_API_KEY` vacío, el bot funciona igual pero sin filtro fino
-> (manda lo que pasó las keywords, sin resumir).
+> (manda lo que pasó las keywords, sin descripción ni filtro de fecha).
+
+---
+
+## Qué te llega
+
+Cada aviso incluye un titular, la **fecha** del evento, la fuente y una **descripción**
+con la info que el LLM pudo extraer (organizador, lugar, cómo inscribirse, etc.):
+
+```
+🎟️ Hackathon de IA – UMSA La Paz 2026 · 📍 La Paz
+🗓️ 2026-06-15
+Hackathon de IA organizado por la UMSA el 15/06. Equipos de 3,
+premios en efectivo. Inscripción gratuita en el link.
+Eventbrite
+Ver más →
+```
+
+Detalles del comportamiento:
+
+- **Prioriza eventos futuros** (los más próximos primero). Los **pasados** solo se
+  muestran si ocurrieron hace **≤ 7 días**; más viejos se descartan.
+- Eventos con fecha que el LLM no logró deducir salen marcados *"Fecha por confirmar"*.
+- Si el LLM no consigue suficiente info de un resultado, el mensaje cae al **mínimo:
+  solo titular + URL**.
+- La "info del contenido" sale del *snippet* de Google, no de la página real. Para
+  webs/Eventbrite/Meetup suele venir completa; para Facebook/TikTok/Instagram es más
+  pobre (tienen muros de login), así que ahí muchos avisos serán mínimos.
 
 ---
 
@@ -94,6 +128,11 @@ Todo lo editable está en `config.py`:
 - `KEYWORDS_EVENTO` / `KEYWORDS_LUGAR`: el filtro barato.
 - Frecuencia de búsqueda: `INTERVALO_HORAS` en `docker-compose.yml` (por defecto 8h).
 
+En `filtros/llm.py`:
+
+- `DIAS_PASADO_MAX`: cuántos días hacia atrás se permite mostrar un evento ya pasado
+  (por defecto `7`). Subilo si querés ver eventos pasados más antiguos.
+
 ## Estructura
 
 ```
@@ -102,10 +141,10 @@ main.py              orquesta el pipeline (una corrida)
 scheduler.py         loop para Docker: corre cada INTERVALO_HORAS
 run_local.py         correr en tu PC leyendo .env (una vez)
 estado.py            dedup por URL (enviados.json)
-notificador.py       envío a Telegram
+notificador.py       envío a Telegram (formato + fecha del mensaje)
 fuentes/serper.py    búsqueda en Serper (Google)
 filtros/keywords.py  filtro barato
-filtros/llm.py       filtro fino + resumen
+filtros/llm.py       filtro fino + descripción + dedup por evento + orden por fecha
 Dockerfile           imagen del bot
 docker-compose.yml   levanta el contenedor (cada 8h)
 ```
