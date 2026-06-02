@@ -1,9 +1,28 @@
 """
 Notificador: envía los eventos nuevos a un chat de Telegram.
 """
+from datetime import datetime, timedelta, timezone
+from html import escape
+
 import requests
 
 import config
+
+_TZ_BOLIVIA = timezone(timedelta(hours=-4))
+
+
+def esc(texto: str) -> str:
+    """Escapa caracteres reservados de HTML para parse_mode=HTML de Telegram."""
+    return escape(texto or "", quote=False)
+
+
+def _linea_fecha(evento: dict) -> str:
+    f = evento.get("fecha_dt")
+    if f is None:
+        return "🗓️ <i>Fecha por confirmar</i>\n"
+    hoy = datetime.now(_TZ_BOLIVIA).date()
+    marca = " <i>(ya pasó)</i>" if f < hoy else ""
+    return f"🗓️ {f.isoformat()}{marca}\n"
 
 EMOJI_FUENTE = {
     "Facebook": "📘",
@@ -17,10 +36,19 @@ EMOJI_FUENTE = {
 
 def _formatear(evento: dict) -> str:
     emoji = EMOJI_FUENTE.get(evento["fuente"], "🌐")
-    ciudad = f" · 📍 {evento['ciudad']}" if evento.get("ciudad") else ""
+    titular = esc(evento.get("resumen") or evento["titulo"])
+    ciudad = f" · 📍 {esc(evento['ciudad'])}" if evento.get("ciudad") else ""
+
+    # Descripción rica si el LLM logró extraer info; si no, caemos a solo
+    # título + URL (sin línea de descripción).
+    descripcion = (evento.get("descripcion") or "").strip()
+    linea_desc = f"{esc(descripcion)}\n" if descripcion else ""
+
     return (
-        f"{emoji} <b>{evento.get('resumen', evento['titulo'])}</b>{ciudad}\n"
-        f"<i>{evento['fuente']}</i>\n"
+        f"{emoji} <b>{titular}</b>{ciudad}\n"
+        f"{_linea_fecha(evento)}"
+        f"{linea_desc}"
+        f"<i>{esc(evento['fuente'])}</i>\n"
         f'<a href="{evento["url"]}">Ver más →</a>'
     )
 
