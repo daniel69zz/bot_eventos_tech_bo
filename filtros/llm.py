@@ -30,8 +30,13 @@ USER_TEMPLATE = (
     "Analiza estos resultados y devuelve un JSON con esta forma exacta:\n"
     '{{"eventos": [{{"indice": <int>, "es_evento": <bool>, '
     '"ciudad": "<La Paz|Cochabamba|Santa Cruz|Online|Bolivia>", '
+    '"clave": "<id-corto-del-evento-en-kebab-case>", '
     '"resumen": "<una linea atractiva en espanol>"}}]}}\n\n'
-    "Incluye en el array SOLO los que es_evento sea true.\n\n"
+    "Incluye en el array SOLO los que es_evento sea true.\n"
+    "IMPORTANTE: varios resultados pueden referirse AL MISMO evento (su pagina de "
+    "Facebook, su TikTok, su Eventbrite, su web, etc.). Asignales a esos la MISMA "
+    '"clave" (por ejemplo "hackathon-utb-scz-2026"). Resultados de eventos distintos '
+    "deben tener claves distintas.\n\n"
     "Resultados:\n{items}"
 )
 
@@ -95,7 +100,37 @@ def filtrar(candidatos: list[dict]) -> list[dict]:
         c = dict(candidatos[idx])
         c["resumen"] = ev.get("resumen", c["titulo"])
         c["ciudad"] = ev.get("ciudad", "")
+        c["clave"] = ev.get("clave", "")
         seleccionados.append(c)
 
     print(f"[llm] {len(seleccionados)}/{len(candidatos)} confirmados como eventos por el LLM.")
-    return seleccionados
+    return _dedup_por_evento(seleccionados)
+
+
+# Prioridad de fuente cuando varios resultados son el MISMO evento:
+# preferimos páginas con info estructurada/oficial antes que redes sociales.
+_PRIORIDAD_FUENTE = {
+    "Eventbrite": 0, "Meetup": 1, "Web": 2,
+    "Facebook": 3, "Instagram": 4, "TikTok": 5,
+}
+
+
+def _dedup_por_evento(eventos: list[dict]) -> list[dict]:
+    """Colapsa resultados que el LLM marcó con la misma 'clave' (mismo evento bajo
+    distintas URLs) en un solo aviso, eligiendo la mejor fuente."""
+    mejor_por_clave: dict[str, dict] = {}
+    sin_clave: list[dict] = []
+    for ev in eventos:
+        clave = (ev.get("clave") or "").strip()
+        if not clave:
+            sin_clave.append(ev)
+            continue
+        actual = mejor_por_clave.get(clave)
+        if actual is None or _PRIORIDAD_FUENTE.get(ev["fuente"], 9) < _PRIORIDAD_FUENTE.get(actual["fuente"], 9):
+            mejor_por_clave[clave] = ev
+
+    unicos = list(mejor_por_clave.values()) + sin_clave
+    descartados = len(eventos) - len(unicos)
+    if descartados:
+        print(f"[dedup] {descartados} resultados eran el mismo evento bajo otra URL — colapsados.")
+    return unicos
