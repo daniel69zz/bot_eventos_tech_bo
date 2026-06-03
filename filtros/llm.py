@@ -135,8 +135,8 @@ def filtrar(candidatos: list[dict]) -> list[dict]:
 # Prioridad de fuente cuando varios resultados son el MISMO evento:
 # preferimos páginas con info estructurada/oficial antes que redes sociales.
 _PRIORIDAD_FUENTE = {
-    "Eventbrite": 0, "Meetup": 1, "Web": 2,
-    "Facebook": 3, "Instagram": 4, "TikTok": 5,
+    "Luma": 0, "Eventbrite": 1, "Meetup": 2, "Web": 3,
+    "Facebook": 4, "Instagram": 5, "TikTok": 6,
 }
 
 

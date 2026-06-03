@@ -30,6 +30,7 @@ EMOJI_FUENTE = {
     "Instagram": "📸",
     "Eventbrite": "🎟️",
     "Meetup": "🤝",
+    "Luma": "✨",
     "Web": "🌐",
 }
 

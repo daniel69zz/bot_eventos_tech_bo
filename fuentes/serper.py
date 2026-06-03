@@ -26,6 +26,8 @@ def _detectar_fuente(url: str) -> str:
         return "Eventbrite"
     if "meetup.com" in u:
         return "Meetup"
+    if "lu.ma" in u:
+        return "Luma"
     return "Web"
 
 

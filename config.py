@@ -25,9 +25,12 @@ LLM_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
 # ----------------------------------------------------------------------------
 QUERIES = [
     'hackathon OR meetup OR "evento tech" La Paz OR Cochabamba OR "Santa Cruz" Bolivia 2026',
-    'site:facebook.com hackathon OR datathon OR "evento tech" Bolivia La Paz Cochabamba',
+    'site:facebook.com hackathon OR meetup OR datathon OR "evento tech" Bolivia "La Paz" OR Cochabamba OR "Santa Cruz"',
+    'site:facebook.com meetup OR taller OR workshop n8n OR automatizacion OR "no code" Bolivia "Santa Cruz" OR "La Paz" OR Cochabamba',
     'site:tiktok.com hackathon OR evento tech Bolivia',
     'site:eventbrite.com tecnologia OR programacion OR startup Bolivia',
+    'site:lu.ma hackathon OR meetup OR taller OR workshop tecnologia OR programacion Bolivia "Santa Cruz" OR "La Paz" OR Cochabamba',
+    'site:lu.ma n8n OR automatizacion OR "no code" OR startup OR "inteligencia artificial" Bolivia',
     'site:instagram.com hackathon OR meetup OR evento tech Bolivia',
     'hackathon OR bootcamp OR conferencia programacion Bolivia 2026',
 ]
@@ -42,6 +45,7 @@ KEYWORDS_EVENTO = [
     "meetup", "bootcamp", "conferencia", "charla", "taller", "workshop",
     "evento tech", "evento de tecnologia", "feria tech", "startup weekend",
     "programacion", "developer", "devfest", "tech talk", "inteligencia artificial",
+    "n8n", "automatizacion", "no code", "low code", "nocode", "lowcode",
 ]
 
 KEYWORDS_LUGAR = [
