@@ -7,11 +7,22 @@ A diferencia de Google Custom Search, Serper NO tiene el límite de 50 dominios:
 busca en toda la web. El operador site: de las QUERIES sigue funcionando
 porque por debajo son resultados de Google.
 """
+from datetime import datetime, timedelta
+
 import requests
 
 import config
 
 ENDPOINT = "https://google.serper.dev/search"
+
+
+def _rango_frescura() -> str:
+    """Devuelve el valor 'tbs' para limitar a anuncios de los últimos
+    config.DIAS_FRESCURA días, usando un rango de fechas personalizado de Google
+    (cdr). Formato de fecha: M/D/YYYY."""
+    hoy = datetime.now()
+    desde = hoy - timedelta(days=config.DIAS_FRESCURA)
+    return f"cdr:1,cd_min:{desde.strftime('%m/%d/%Y')},cd_max:{hoy.strftime('%m/%d/%Y')}"
 
 
 def _detectar_fuente(url: str) -> str:
@@ -26,7 +37,7 @@ def _detectar_fuente(url: str) -> str:
         return "Eventbrite"
     if "meetup.com" in u:
         return "Meetup"
-    if "lu.ma" in u:
+    if "lu.ma" in u or "luma.com" in u:
         return "Luma"
     return "Web"
 
@@ -41,6 +52,7 @@ def buscar() -> list[dict]:
         "Content-Type": "application/json",
     }
 
+    tbs = _rango_frescura()
     resultados: list[dict] = []
     for query in config.QUERIES:
         payload = {
@@ -48,7 +60,7 @@ def buscar() -> list[dict]:
             "num": min(config.RESULTADOS_POR_QUERY, 10),
             "hl": "es",
             "gl": "bo",        # geolocalización Bolivia
-            "tbs": "qdr:m",    # solo resultados del último mes (qdr:w = semana, qdr:d = día)
+            "tbs": tbs,        # solo anuncios de los últimos config.DIAS_FRESCURA días
         }
         try:
             r = requests.post(ENDPOINT, headers=headers, json=payload, timeout=20)

@@ -123,9 +123,11 @@ def filtrar(candidatos: list[dict]) -> list[dict]:
         c = dict(candidatos[idx])
         c["resumen"] = ev.get("resumen", c["titulo"])
         c["descripcion"] = (ev.get("descripcion") or "").strip()
-        c["ciudad"] = ev.get("ciudad", "")
+        # Si una fuente con datos estructurados (Luma) ya nos dio fecha/ciudad
+        # reales, esas mandan sobre lo que adivinó el LLM.
+        c["ciudad"] = c.get("ciudad_oficial") or ev.get("ciudad", "")
         c["clave"] = ev.get("clave", "")
-        c["fecha"] = ev.get("fecha", "desconocida")
+        c["fecha"] = c.get("fecha_oficial") or ev.get("fecha", "desconocida")
         seleccionados.append(c)
 
     print(f"[llm] {len(seleccionados)}/{len(candidatos)} confirmados como eventos por el LLM.")

@@ -24,15 +24,27 @@ LLM_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
 # El operador site: fuerza a que aparezcan FB / TikTok / etc. ya indexados por Google.
 # ----------------------------------------------------------------------------
 QUERIES = [
-    'hackathon OR meetup OR "evento tech" La Paz OR Cochabamba OR "Santa Cruz" Bolivia 2026',
-    'site:facebook.com hackathon OR meetup OR datathon OR "evento tech" Bolivia "La Paz" OR Cochabamba OR "Santa Cruz"',
-    'site:facebook.com meetup OR taller OR workshop n8n OR automatizacion OR "no code" Bolivia "Santa Cruz" OR "La Paz" OR Cochabamba',
-    'site:tiktok.com hackathon OR evento tech Bolivia',
-    'site:eventbrite.com tecnologia OR programacion OR startup Bolivia',
-    'site:lu.ma hackathon OR meetup OR taller OR workshop tecnologia OR programacion Bolivia "Santa Cruz" OR "La Paz" OR Cochabamba',
-    'site:lu.ma n8n OR automatizacion OR "no code" OR startup OR "inteligencia artificial" Bolivia',
-    'site:instagram.com hackathon OR meetup OR evento tech Bolivia',
-    'hackathon OR bootcamp OR conferencia programacion Bolivia 2026',
+    # --- Google general, por area tematica (cada string = 1 credito de Serper) ---
+    'hackathon OR hackaton OR datathon OR meetup OR "evento tech" OR conferencia OR bootcamp OR taller tecnologia OR programacion Bolivia "La Paz" OR Cochabamba OR "Santa Cruz" 2026',
+    'meetup OR taller OR charla OR conferencia "inteligencia artificial" OR IA OR "machine learning" OR ollama OR LLM OR chatgpt OR "ciencia de datos" Bolivia 2026',
+    'meetup OR taller OR evento "node js" OR javascript OR python OR react OR "desarrollo de software" OR developer OR programacion Bolivia',
+    'meetup OR taller OR conferencia ciberseguridad OR "seguridad informatica" OR hacking OR pentesting OR CTF Bolivia',
+    'meetup OR taller OR evento blockchain OR criptomonedas OR cripto OR bitcoin OR ethereum OR web3 Bolivia',
+    'meetup OR taller OR evento cloud OR AWS OR Azure OR DevOps OR Docker OR Kubernetes OR Linux OR "codigo abierto" Bolivia',
+    'meetup OR taller OR evento "bases de datos" OR SQL OR "big data" OR "data science" OR "analitica de datos" Bolivia',
+    'meetup OR taller OR evento n8n OR automatizacion OR "no code" OR "low code" OR RPA Bolivia',
+    'GDG OR "Google Developer Group" OR "Women Techmakers" OR "AWS Community" OR "Python Bolivia" OR PyLadies OR DevFest Bolivia',
+    # --- Luma (muy usado por comunidades de IA / automatizacion / startups) ---
+    'site:lu.ma hackathon OR meetup OR taller OR workshop OR conferencia tecnologia OR programacion Bolivia "Santa Cruz" OR "La Paz" OR Cochabamba',
+    'site:lu.ma "inteligencia artificial" OR IA OR "machine learning" OR ollama OR LLM OR n8n OR automatizacion OR startup Bolivia',
+    'site:lu.ma blockchain OR cripto OR web3 OR ciberseguridad OR AWS OR cloud OR DevOps OR "node js" OR python Bolivia',
+    # --- Facebook (paginas/eventos indexados por Google) ---
+    'site:facebook.com hackathon OR meetup OR datathon OR "evento tech" OR taller tecnologia Bolivia "La Paz" OR Cochabamba OR "Santa Cruz"',
+    'site:facebook.com meetup OR taller OR workshop n8n OR automatizacion OR "inteligencia artificial" OR "no code" OR ciberseguridad Bolivia',
+    # --- Otras plataformas ---
+    'site:eventbrite.com tecnologia OR programacion OR startup OR "inteligencia artificial" OR ciberseguridad OR blockchain Bolivia',
+    'site:tiktok.com hackathon OR "evento tech" OR meetup tecnologia Bolivia',
+    'site:instagram.com hackathon OR meetup OR "evento tech" OR taller tecnologia Bolivia',
 ]
 
 # ----------------------------------------------------------------------------
@@ -41,18 +53,82 @@ QUERIES = [
 # Todo se compara en minúsculas y sin acentos.
 # ----------------------------------------------------------------------------
 KEYWORDS_EVENTO = [
+    # --- Formato del evento ---
     "hackathon", "hackaton", "hackathone", "datathon", "ideathon", "ideaton",
-    "meetup", "bootcamp", "conferencia", "charla", "taller", "workshop",
-    "evento tech", "evento de tecnologia", "feria tech", "startup weekend",
-    "programacion", "developer", "devfest", "tech talk", "inteligencia artificial",
-    "n8n", "automatizacion", "no code", "low code", "nocode", "lowcode",
+    "meetup", "bootcamp", "conferencia", "congreso", "charla", "taller", "workshop",
+    "webinar", "seminario", "masterclass", "curso", "diplomado", "capacitacion",
+    "feria", "expo", "summit", "cumbre", "foro", "jornada", "jornadas", "encuentro",
+    "devfest", "startup weekend", "demo day", "demoday", "tech talk", "code camp",
+    "codecamp", "hacknight", "networking", "pitch", "evento tech",
+    "evento de tecnologia", "feria tech",
+    # --- Programacion / lenguajes / frameworks ---
+    "programacion", "desarrollo de software", "developer", "fullstack", "full stack",
+    "frontend", "front end", "backend", "back end", "node js", "nodejs", "javascript",
+    "typescript", "react", "angular", "vue", "svelte", "next js", "nextjs", "python",
+    "django", "flask", "fastapi", "java", "spring", "php", "laravel", "golang", "rust",
+    "kotlin", "swift", "flutter", "dart", "c#", ".net", "ruby", "rails", "api", "graphql",
+    # --- Inteligencia artificial / datos ---
+    "inteligencia artificial", "ia", "ai", "machine learning", "aprendizaje automatico",
+    "deep learning", "ml", "llm", "llms", "chatgpt", "gpt", "openai", "ollama", "gemini",
+    "claude", "hugging face", "prompt engineering", "agentes de ia", "vision artificial",
+    "computer vision", "nlp", "procesamiento de lenguaje natural", "redes neuronales",
+    "data science", "ciencia de datos", "bases de datos", "base de datos", "sql",
+    "postgresql", "postgres", "mysql", "mongodb", "big data", "data engineering",
+    "ingenieria de datos", "analitica de datos", "data analytics", "power bi",
+    "business intelligence", "etl",
+    # --- Automatizacion / no-code ---
+    "n8n", "automatizacion", "no code", "nocode", "low code", "lowcode", "zapier",
+    "rpa", "make.com",
+    # --- Cloud / DevOps ---
+    "cloud", "computacion en la nube", "aws", "amazon web services", "azure",
+    "google cloud", "gcp", "devops", "docker", "kubernetes", "k8s", "terraform",
+    "ci cd", "cicd", "serverless", "microservicios",
+    # --- Ciberseguridad ---
+    "ciberseguridad", "seguridad informatica", "seguridad de la informacion", "hacking",
+    "ethical hacking", "hacking etico", "pentesting", "pentest", "ctf", "owasp",
+    "infosec", "red team", "blue team", "osint", "criptografia",
+    # --- Blockchain / cripto ---
+    "blockchain", "cadena de bloques", "criptomonedas", "cripto", "bitcoin", "ethereum",
+    "web3", "nft", "defi", "smart contracts", "contratos inteligentes", "solidity",
+    # --- Linux / open source ---
+    "linux", "gnu linux", "ubuntu", "debian", "fedora", "arch linux", "open source",
+    "codigo abierto", "software libre", "foss",
+    # --- Comunidades / organizadores ---
+    "gdg", "google developer", "google developers", "google developer group",
+    "women techmakers", "aws community", "aws user group", "aws ug", "mvp",
+    "python bolivia", "pyladies", "django girls", "developer circle", "mlsa",
+    "github", "gitlab", "freecodecamp", "platzi",
+    # --- Hardware / IoT / robotica ---
+    "iot", "internet de las cosas", "robotica", "arduino", "raspberry pi", "electronica",
+    "sistemas embebidos",
+    # --- Producto / diseño / metodologias ---
+    "ux", "ui", "ux ui", "experiencia de usuario", "product manager",
+    "gestion de productos", "scrum", "agile", "agilidad", "metodologias agiles", "kanban",
+    # --- Videojuegos / XR ---
+    "game dev", "desarrollo de videojuegos", "videojuegos", "unity", "unreal", "godot",
+    "realidad virtual", "vr", "realidad aumentada", "metaverso", "xr",
+    # --- Startups / innovacion ---
+    "startup", "startups", "emprendimiento", "innovacion", "fintech", "edtech",
+    "tecnologia", "transformacion digital", "incubadora", "aceleradora",
 ]
 
 KEYWORDS_LUGAR = [
-    "la paz", "cochabamba", "santa cruz", "scz", "cocha", "bolivia",
-    "umsa", "umss", "upb", "ucb", "upsa", "univalle", "el alto",
+    # Pais / gentilicio
+    "bolivia", "boliviano", "boliviana", "bolivianos",
+    # Ciudades / departamentos
+    "la paz", "el alto", "cochabamba", "santa cruz", "santa cruz de la sierra",
+    "sucre", "tarija", "oruro", "potosi", "beni", "trinidad", "pando", "chuquisaca",
+    "scz", "cocha",
+    # Universidades (suelen organizar/anunciar estos eventos)
+    "umsa", "umss", "upb", "ucb", "upsa", "univalle", "uagrm", "unifranz", "emi",
 ]
 
-# Cuántas horas hacia atrás considerar "nuevo" no aplica acá (Serper no da fecha exacta),
-# la deduplicación se hace por URL en estado.py
+# ----------------------------------------------------------------------------
+# FRESCURA: solo resultados PUBLICADOS/INDEXADOS por Google en los últimos N días.
+# OJO: esto filtra por fecha de la PÁGINA (cuándo se anunció), NO por la fecha del
+# evento. Es a propósito: queremos solo anuncios recientes y aceptamos perder
+# eventos anunciados hace mucho aunque ocurran pronto.
+# ----------------------------------------------------------------------------
+DIAS_FRESCURA = 14          # ventana de antigüedad del anuncio (2 semanas)
+
 RESULTADOS_POR_QUERY = 10   # cuántos resultados pide a Serper por búsqueda

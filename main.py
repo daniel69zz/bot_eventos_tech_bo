@@ -6,7 +6,7 @@ Pipeline:
 
 Se corre una vez por ejecución (ideal: cada 12h vía GitHub Actions / cron).
 """
-from fuentes import serper
+from fuentes import serper, detalle
 from filtros import keywords, llm
 import estado
 import notificador
@@ -23,6 +23,10 @@ def main() -> None:
 
     # 3. Quedarse solo con los que NO se enviaron antes (ahorra llamadas al LLM)
     candidatos = estado.filtrar_nuevos(candidatos)
+
+    # 3b. Enriquecer eventos de Luma con su FECHA y descripción reales (lee la
+    #     página individual; un GET por candidato nuevo de Luma).
+    candidatos = detalle.enriquecer_lista(candidatos)
 
     # 4. Filtro fino + resumen con el LLM
     eventos = llm.filtrar(candidatos)
