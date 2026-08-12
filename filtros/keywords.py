@@ -39,7 +39,13 @@ _RE_LUGAR = _compilar(config.KEYWORDS_LUGAR)
 
 def pasa_filtro(resultado: dict) -> bool:
     texto = _normalizar(f"{resultado['titulo']} {resultado['snippet']}")
-    return bool(_RE_EVENTO.search(texto)) and bool(_RE_LUGAR.search(texto))
+    if not _RE_EVENTO.search(texto):
+        return False
+    # Fuentes con detalle estructurado (Luma): el lugar lo confirma después
+    # fuentes/detalle.py, así que no lo exigimos en el snippet.
+    if resultado.get("fuente") in config.FUENTES_SIN_FILTRO_LUGAR:
+        return True
+    return bool(_RE_LUGAR.search(texto))
 
 
 def filtrar(resultados: list[dict]) -> list[dict]:

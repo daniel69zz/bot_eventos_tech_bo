@@ -34,6 +34,13 @@ QUERIES = [
     'meetup OR taller OR evento "bases de datos" OR SQL OR "big data" OR "data science" OR "analitica de datos" Bolivia',
     'meetup OR taller OR evento n8n OR automatizacion OR "no code" OR "low code" OR RPA Bolivia',
     'GDG OR "Google Developer Group" OR "Women Techmakers" OR "AWS Community" OR "Python Bolivia" OR PyLadies OR DevFest Bolivia',
+    # --- Charlas / conferencias / conversatorios con foco en LA PAZ ---
+    # (formatos "de hablar", que las queries de arriba —centradas en hackathon/
+    #  meetup/taller— suelen dejar pasar)
+    'charla OR charlas OR conferencia OR conversatorio OR seminario OR "ciclo de charlas" OR panel OR "mesa redonda" tecnologia OR programacion OR "inteligencia artificial" OR software "La Paz" Bolivia 2026',
+    'UMSA OR "Universidad Catolica" OR UCB OR UPB OR EMI OR Univalle OR Unifranz OR "La Salle" OR Loyola charla OR conferencia OR seminario OR congreso OR jornada informatica OR "ingenieria de sistemas" OR tecnologia "La Paz" Bolivia',
+    '"GDG La Paz" OR "Python Bolivia" OR "Women Techmakers La Paz" OR "AWS User Group" OR "Bolivia Tech Hub" OR "Startup Bolivia" charla OR meetup OR conferencia OR taller "La Paz"',
+    'site:lu.ma OR site:eventbrite.com OR site:meetup.com charla OR conferencia OR talk OR meetup tecnologia OR software OR IA OR data "La Paz" Bolivia',
     # --- Luma (muy usado por comunidades de IA / automatizacion / startups) ---
     'site:lu.ma hackathon OR meetup OR taller OR workshop OR conferencia tecnologia OR programacion Bolivia "Santa Cruz" OR "La Paz" OR Cochabamba',
     'site:lu.ma "inteligencia artificial" OR IA OR "machine learning" OR ollama OR LLM OR n8n OR automatizacion OR startup Bolivia',
@@ -54,13 +61,23 @@ QUERIES = [
 # ----------------------------------------------------------------------------
 KEYWORDS_EVENTO = [
     # --- Formato del evento ---
+    # OJO: el match es por palabra COMPLETA, así que los plurales van aparte
+    # ("charla" no matchea "charlas").
     "hackathon", "hackaton", "hackathone", "datathon", "ideathon", "ideaton",
-    "meetup", "bootcamp", "conferencia", "congreso", "charla", "taller", "workshop",
-    "webinar", "seminario", "masterclass", "curso", "diplomado", "capacitacion",
+    "meetup", "meetups", "bootcamp", "conferencia", "conferencias", "congreso",
+    "charla", "charlas", "taller", "talleres", "workshop", "workshops",
+    "webinar", "webinars", "seminario", "seminarios", "masterclass", "curso",
+    "diplomado", "capacitacion",
     "feria", "expo", "summit", "cumbre", "foro", "jornada", "jornadas", "encuentro",
     "devfest", "startup weekend", "demo day", "demoday", "tech talk", "code camp",
     "codecamp", "hacknight", "networking", "pitch", "evento tech",
     "evento de tecnologia", "feria tech",
+    # --- Formatos "de hablar" (charlas/conferencias y parientes) ---
+    "conversatorio", "conversatorios", "ciclo de charlas", "ciclo de conferencias",
+    "panel", "mesa redonda", "coloquio", "simposio", "simposium", "ponencia",
+    "ponencias", "keynote", "disertacion", "exposicion", "conferencia magistral",
+    "charla tecnica", "open talk", "tech week", "semana de la ingenieria",
+    "semana tecnologica",
     # --- Programacion / lenguajes / frameworks ---
     "programacion", "desarrollo de software", "developer", "fullstack", "full stack",
     "frontend", "front end", "backend", "back end", "node js", "nodejs", "javascript",
@@ -121,7 +138,17 @@ KEYWORDS_LUGAR = [
     "scz", "cocha",
     # Universidades (suelen organizar/anunciar estos eventos)
     "umsa", "umss", "upb", "ucb", "upsa", "univalle", "uagrm", "unifranz", "emi",
+    "la salle", "loyola", "udabol", "usip", "epi",
+    # Zonas de La Paz (a veces el anuncio dice la zona y no la ciudad)
+    "sopocachi", "calacoto", "obrajes", "irpavi", "achumani", "san jorge",
+    "zona sur", "miraflores",
 ]
+
+# Fuentes cuya página individual trae ciudad/fecha estructuradas: no exigimos
+# keyword de lugar en el snippet de Google (el snippet de lu.ma suele venir sin
+# ciudad y perdíamos charlas reales de La Paz). El lugar se confirma después con
+# fuentes/detalle.py y el LLM.
+FUENTES_SIN_FILTRO_LUGAR = {"Luma"}
 
 # ----------------------------------------------------------------------------
 # FRESCURA: solo resultados PUBLICADOS/INDEXADOS por Google en los últimos N días.
@@ -132,3 +159,38 @@ KEYWORDS_LUGAR = [
 DIAS_FRESCURA = 14          # ventana de antigüedad del anuncio (2 semanas)
 
 RESULTADOS_POR_QUERY = 10   # cuántos resultados pide a Serper por búsqueda
+
+# ----------------------------------------------------------------------------
+# COSTO: cada query = 1 crédito de Serper. Con las 21 queries corriendo 3 veces
+# al día serían 63 créditos/día y los 2.500 gratis se acaban en ~40 días.
+# Por eso rotamos: cada corrida ejecuta solo un bloque de queries y la siguiente
+# sigue donde quedó la anterior (el índice se guarda en enviados.json).
+# Con 8 por corrida y 3 corridas/día: 24 créditos/día y la lista completa se
+# recorre cada ~9 horas.
+# Poné 0 para ejecutar TODAS las queries en cada corrida (comportamiento viejo).
+# ----------------------------------------------------------------------------
+QUERIES_POR_CORRIDA = 8
+
+# ----------------------------------------------------------------------------
+# ESTADO (enviados.json)
+# ----------------------------------------------------------------------------
+# Cuánto tiempo recordamos una URL ya procesada. Pasado ese plazo se olvida:
+# el archivo no crece para siempre y un evento anual vuelve a ser noticia.
+DIAS_RETENCION_ESTADO = 90
+# Las páginas "hub" (facebook.com/GDGLaPaz, meetup.com/grupo…) no son un evento:
+# publican eventos nuevos todo el tiempo. A esas las volvemos a mirar seguido en
+# vez de bloquearlas para siempre.
+DIAS_REVISITA_HUB = 7
+
+# ----------------------------------------------------------------------------
+# LLM
+# ----------------------------------------------------------------------------
+# Candidatos por llamada. Mandar 60 de una vez alarga el prompt y hace que el
+# modelo desalinee los índices; en lotes chicos el mapeo es confiable.
+LOTE_LLM = 20
+
+# ----------------------------------------------------------------------------
+# HTTP / Telegram
+# ----------------------------------------------------------------------------
+HTTP_INTENTOS = 3           # reintentos ante 429 / 5xx / timeouts
+PAUSA_TELEGRAM_SEG = 1.5    # pausa entre mensajes (Telegram limita ~20/min por chat)

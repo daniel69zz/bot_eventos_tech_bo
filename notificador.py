@@ -1,12 +1,12 @@
 """
 Notificador: envía los eventos nuevos a un chat de Telegram.
 """
+import time
 from datetime import datetime, timedelta, timezone
 from html import escape
 
-import requests
-
 import config
+import red
 
 _TZ_BOLIVIA = timezone(timedelta(hours=-4))
 
@@ -64,7 +64,11 @@ def enviar(eventos: list[dict]) -> None:
 
     url = f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage"
     enviados_ok = 0
-    for ev in eventos:
+    for i, ev in enumerate(eventos):
+        # Telegram tolera ~20 mensajes/minuto por chat: pausamos entre envíos
+        # para no comernos un 429 (red.pedir igual respeta el retry_after).
+        if i:
+            time.sleep(config.PAUSA_TELEGRAM_SEG)
         payload = {
             "chat_id": config.TELEGRAM_CHAT_ID,
             "text": _formatear(ev),
@@ -72,8 +76,8 @@ def enviar(eventos: list[dict]) -> None:
             "disable_web_page_preview": False,
         }
         try:
-            r = requests.post(url, json=payload, timeout=20)
-            r.raise_for_status()
+            red.pedir("POST", url, etiqueta="telegram", intentos=config.HTTP_INTENTOS,
+                      json=payload, timeout=20)
             enviados_ok += 1
         except Exception as e:
             print(f"[telegram] Error enviando '{ev['titulo'][:40]}': {e}")

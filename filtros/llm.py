@@ -7,14 +7,20 @@ Toma los candidatos que ya pasaron keywords y le pide al modelo que, para cada u
   - genere un resumen de UNA línea, atractivo y claro.
 
 Usa una API compatible con OpenAI (Groq gratis por defecto, o OpenAI/OpenRouter/Ollama).
-Si no hay LLM_API_KEY configurada, devuelve los candidatos sin tocar (modo degradado).
+
+Los candidatos se mandan en lotes de config.LOTE_LLM: en un solo prompt gigante
+el modelo termina desalineando los índices y se pierden o se mezclan eventos.
+
+Si un lote falla (o no hay LLM_API_KEY), sus candidatos NO se dan por procesados:
+no se avisa nada de ese lote y se reintentan en la próxima corrida. Antes se
+mandaban a Telegram sin filtrar y encima se marcaban como enviados, así que un
+429 de la API llenaba el chat de basura y quemaba los eventos buenos.
 """
 import json
 from datetime import datetime, timedelta, timezone
 
-import requests
-
 import config
+import red
 
 # Bolivia no tiene horario de verano: siempre UTC-4. Calculamos "hoy" en hora
 # boliviana aunque el contenedor corra en UTC.
@@ -26,10 +32,14 @@ SYSTEM_PROMPT = (
     "Eres un clasificador de eventos de tecnología en Bolivia. "
     "Recibes una lista de resultados de búsqueda (titulo, snippet, fuente). "
     "Para cada uno decides si es un evento tech REAL y relevante: hackathon, meetup, "
-    "datathon, conferencia, bootcamp, charla o taller de tecnología/programación, "
+    "datathon, conferencia, bootcamp, taller, o cualquier formato de charla "
+    "(charla, conversatorio, ciclo de charlas, panel, mesa redonda, seminario, "
+    "coloquio, ponencia o keynote) de tecnología/programación, "
     "ubicado en La Paz, Cochabamba o Santa Cruz (Bolivia), o un hackathon online "
-    "claramente abierto a bolivianos. Descarta: noticias genéricas, cursos pagados sin "
-    "evento, resultados ambiguos o de otros países. "
+    "claramente abierto a bolivianos. Una charla o conferencia con fecha y lugar "
+    "concretos cuenta como evento aunque sea de una sola hora y sin inscripción. "
+    "Descarta: noticias genéricas, cursos pagados sin "
+    "evento, resultados ambiguos o de otros países (Perú, Chile, Argentina, España...). "
     "Prioriza eventos que aun NO han ocurrido (futuros). "
     "Respondes SOLO con un JSON válido."
 )
@@ -70,24 +80,16 @@ def _construir_items(candidatos: list[dict]) -> str:
     return "\n".join(lineas)
 
 
-def filtrar(candidatos: list[dict]) -> list[dict]:
-    if not candidatos:
-        return []
-
-    if not config.LLM_API_KEY:
-        print("[llm] Sin LLM_API_KEY — se omite el filtro LLM, paso los candidatos tal cual.")
-        for c in candidatos:
-            c["resumen"] = c["titulo"]
-            c["ciudad"] = ""
-        return candidatos
-
+def _clasificar_lote(lote: list[dict]) -> list[dict]:
+    """Manda un lote al modelo y devuelve los eventos confirmados.
+    Lanza red.ErrorHttp o ValueError si el lote no se pudo clasificar."""
     payload = {
         "model": config.LLM_MODEL,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": USER_TEMPLATE.format(
                 fecha_hoy=_hoy_bolivia().isoformat(),
-                items=_construir_items(candidatos),
+                items=_construir_items(lote),
             )},
         ],
         "temperature": 0.2,
@@ -98,40 +100,63 @@ def filtrar(candidatos: list[dict]) -> list[dict]:
         "Content-Type": "application/json",
     }
 
-    try:
-        r = requests.post(
-            f"{config.LLM_BASE_URL}/chat/completions",
-            headers=headers, json=payload, timeout=60,
-        )
-        r.raise_for_status()
-        contenido = r.json()["choices"][0]["message"]["content"]
-        data = json.loads(contenido)
-    except Exception as e:
-        print(f"[llm] Error llamando al LLM ({e}) — paso candidatos sin filtrar.")
-        for c in candidatos:
-            c["resumen"] = c["titulo"]
-            c["ciudad"] = ""
-        return candidatos
+    r = red.pedir(
+        "POST", f"{config.LLM_BASE_URL}/chat/completions",
+        etiqueta="llm", intentos=config.HTTP_INTENTOS,
+        headers=headers, json=payload, timeout=60,
+    )
+    data = json.loads(r.json()["choices"][0]["message"]["content"])
 
     seleccionados = []
     for ev in data.get("eventos", []):
         if not ev.get("es_evento"):
             continue
         idx = ev.get("indice")
-        if idx is None or idx < 0 or idx >= len(candidatos):
+        if not isinstance(idx, int) or idx < 0 or idx >= len(lote):
             continue
-        c = dict(candidatos[idx])
+        c = dict(lote[idx])
         c["resumen"] = ev.get("resumen", c["titulo"])
         c["descripcion"] = (ev.get("descripcion") or "").strip()
-        # Si una fuente con datos estructurados (Luma) ya nos dio fecha/ciudad
-        # reales, esas mandan sobre lo que adivinó el LLM.
+        # Si una fuente con datos estructurados (Luma, Eventbrite, Meetup) ya nos
+        # dio fecha/ciudad reales, esas mandan sobre lo que adivinó el LLM.
         c["ciudad"] = c.get("ciudad_oficial") or ev.get("ciudad", "")
         c["clave"] = ev.get("clave", "")
         c["fecha"] = c.get("fecha_oficial") or ev.get("fecha", "desconocida")
         seleccionados.append(c)
+    return seleccionados
 
-    print(f"[llm] {len(seleccionados)}/{len(candidatos)} confirmados como eventos por el LLM.")
-    return _ordenar_por_fecha(_dedup_por_evento(seleccionados))
+
+def filtrar(candidatos: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Clasifica los candidatos en lotes.
+
+    Devuelve (eventos_a_avisar, candidatos_procesados). `procesados` son los que
+    el modelo sí llegó a evaluar: solo esos se marcan como vistos. Los de un lote
+    que falló quedan fuera para reintentarlos en la próxima corrida."""
+    if not candidatos:
+        return [], []
+
+    if not config.LLM_API_KEY:
+        print("[llm] Falta LLM_API_KEY — sin filtro no se avisa nada "
+              "(configurala en .env; los candidatos quedan para la próxima corrida).")
+        return [], []
+
+    seleccionados: list[dict] = []
+    procesados: list[dict] = []
+    lotes = [candidatos[i:i + config.LOTE_LLM] for i in range(0, len(candidatos), config.LOTE_LLM)]
+    if len(lotes) > 1:
+        print(f"[llm] {len(candidatos)} candidatos en {len(lotes)} lotes de hasta {config.LOTE_LLM}.")
+
+    for n, lote in enumerate(lotes, 1):
+        try:
+            seleccionados.extend(_clasificar_lote(lote))
+        except Exception as e:
+            print(f"[llm] Lote {n}/{len(lotes)} falló ({e}) — esos {len(lote)} candidatos "
+                  "no se avisan ni se marcan; se reintentan en la próxima corrida.")
+            continue
+        procesados.extend(lote)
+
+    print(f"[llm] {len(seleccionados)}/{len(procesados)} confirmados como eventos por el LLM.")
+    return _ordenar_por_fecha(_dedup_por_evento(seleccionados)), procesados
 
 
 # Prioridad de fuente cuando varios resultados son el MISMO evento:

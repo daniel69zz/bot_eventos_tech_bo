@@ -1,7 +1,8 @@
 """
 Fuente: Serper API (https://serper.dev) — resultados reales de Google.
-Hace una llamada POST por cada query de config.QUERIES y devuelve una lista
-de resultados normalizados: {titulo, url, snippet, fuente}.
+Hace una llamada POST por cada query que le toca a esta corrida (ver rotación en
+config.QUERIES_POR_CORRIDA) y devuelve una lista de resultados normalizados:
+{titulo, url, snippet, fuente}.
 
 A diferencia de Google Custom Search, Serper NO tiene el límite de 50 dominios:
 busca en toda la web. El operador site: de las QUERIES sigue funcionando
@@ -9,9 +10,9 @@ porque por debajo son resultados de Google.
 """
 from datetime import datetime, timedelta
 
-import requests
-
 import config
+import estado
+import red
 
 ENDPOINT = "https://google.serper.dev/search"
 
@@ -53,8 +54,14 @@ def buscar() -> list[dict]:
     }
 
     tbs = _rango_frescura()
+    indices = estado.siguiente_bloque(len(config.QUERIES), config.QUERIES_POR_CORRIDA)
+    queries = [config.QUERIES[i] for i in indices]
+    if len(queries) < len(config.QUERIES):
+        print(f"[serper] Rotación: queries {indices[0]}-{indices[-1]} de {len(config.QUERIES)} "
+              f"({len(queries)} créditos esta corrida).")
+
     resultados: list[dict] = []
-    for query in config.QUERIES:
+    for query in queries:
         payload = {
             "q": query,
             "num": min(config.RESULTADOS_POR_QUERY, 10),
@@ -63,8 +70,8 @@ def buscar() -> list[dict]:
             "tbs": tbs,        # solo anuncios de los últimos config.DIAS_FRESCURA días
         }
         try:
-            r = requests.post(ENDPOINT, headers=headers, json=payload, timeout=20)
-            r.raise_for_status()
+            r = red.pedir("POST", ENDPOINT, etiqueta="serper", intentos=config.HTTP_INTENTOS,
+                          headers=headers, json=payload, timeout=20)
             data = r.json()
         except Exception as e:
             print(f"[serper] Error en query '{query[:40]}...': {e}")
@@ -79,5 +86,5 @@ def buscar() -> list[dict]:
                 "fuente": _detectar_fuente(url),
             })
 
-    print(f"[serper] {len(resultados)} resultados crudos de {len(config.QUERIES)} queries.")
+    print(f"[serper] {len(resultados)} resultados crudos de {len(queries)} queries.")
     return resultados

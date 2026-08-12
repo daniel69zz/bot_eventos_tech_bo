@@ -24,19 +24,21 @@ def main() -> None:
     # 3. Quedarse solo con los que NO se enviaron antes (ahorra llamadas al LLM)
     candidatos = estado.filtrar_nuevos(candidatos)
 
-    # 3b. Enriquecer eventos de Luma con su FECHA y descripción reales (lee la
-    #     página individual; un GET por candidato nuevo de Luma).
+    # 3b. Enriquecer con la FECHA y descripción reales de la página del evento
+    #     (Luma, Eventbrite, Meetup; un GET por candidato nuevo de esas fuentes).
     candidatos = detalle.enriquecer_lista(candidatos)
 
-    # 4. Filtro fino + resumen con el LLM
-    eventos = llm.filtrar(candidatos)
+    # 4. Filtro fino + resumen con el LLM, en lotes.
+    #    `procesados` son los candidatos que el modelo SÍ llegó a evaluar.
+    eventos, procesados = llm.filtrar(candidatos)
 
     # 5. Enviar a Telegram
     notificador.enviar(eventos)
 
-    # 6. Marcar como procesados TODOS los candidatos que entraron al LLM
-    #    (no solo los aprobados) para no re-evaluar la misma basura en cada corrida.
-    estado.marcar_enviados(candidatos)
+    # 6. Marcar como procesados los que el LLM evaluó (aprobados o no) para no
+    #    re-evaluar la misma basura. Los de un lote que falló NO se marcan: se
+    #    reintentan en la próxima corrida en vez de perderse para siempre.
+    estado.marcar_enviados(procesados)
 
     print(f"=== Listo: {len(eventos)} eventos nuevos avisados. ===")
 
