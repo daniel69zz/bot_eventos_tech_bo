@@ -17,7 +17,7 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 # LLM — compatible con cualquier API estilo OpenAI (Groq, OpenRouter, OpenAI, Ollama local)
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.groq.com/openai/v1")
-LLM_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
+LLM_MODEL = os.environ.get("LLM_MODEL", "openai/gpt-oss-120b")
 
 # ----------------------------------------------------------------------------
 # QUÉ BUSCAR — cada string es una búsqueda independiente (1 crédito de Serper c/u).

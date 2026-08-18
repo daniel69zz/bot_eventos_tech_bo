@@ -66,7 +66,12 @@ Por defecto usa **Groq** (capa gratis generosa, rápido):
 
 1. Creá una API key en https://console.groq.com/keys → es `LLM_API_KEY`.
 2. Dejá `LLM_BASE_URL=https://api.groq.com/openai/v1` y
-   `LLM_MODEL=llama-3.3-70b-versatile`.
+   `LLM_MODEL=openai/gpt-oss-120b`.
+
+> Ojo: Groq **dio de baja** `llama-3.3-70b-versatile` (y `llama-3.1-8b-instant`) el
+> 17/06/2026; si lo usás te devuelve `404 model does not exist`. Los reemplazos son
+> `openai/gpt-oss-120b` o `qwen/qwen3.6-27b`. La lista viva de modelos vigentes está
+> en `GET https://api.groq.com/openai/v1/models`.
 
 > Como la API es compatible con OpenAI, podés cambiar a OpenAI, OpenRouter o un
 > Ollama local solo cambiando `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY`.
